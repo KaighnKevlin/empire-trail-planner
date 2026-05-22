@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚴 Empire State Trail — when to ride</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #fdfaf3;
+    --leaf: #4f7d44;
+    --leaf-dark: #2e5226;
+    --amber: #f0a830;
+    --rust: #c8553d;
+    --good: #c8e6bf;
+    --good-deep: #5a9d49;
+    --ok: #fae6b6;
+    --bad: #f0c5bc;
+    --text: #2e3a2a;
+    --text-soft: #6f7e69;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; color: var(--text); background: var(--cream); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 18px 48px; }
+  header { text-align: center; padding-bottom: 16px; border-bottom: 2px dashed var(--leaf); }
+  h1 { margin: 0; font-size: clamp(26px, 4vw, 36px); color: var(--leaf-dark); font-weight: 700; }
+  .sub { color: var(--text-soft); margin-top: 6px; font-size: 14px; }
+  .windows { background: #fff; border: 2px solid var(--leaf); border-radius: 14px; padding: 18px; margin: 22px 0; }
+  .windows h2 { margin: 0 0 12px; color: var(--leaf-dark); font-size: 18px; font-weight: 700; }
+  .window { background: var(--good); padding: 10px 14px; border-radius: 10px; margin: 8px 0; font-weight: 500; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .window .score { color: var(--leaf-dark); font-weight: 700; }
+  .window .note { font-size: 12px; color: var(--text-soft); width: 100%; font-weight: 400; }
+  .loading { text-align: center; padding: 20px; color: var(--text-soft); font-style: italic; }
+  .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
+  .refresh { background: var(--leaf); color: #fff; border: 0; padding: 8px 16px; border-radius: 999px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .stamp { font-size: 11px; color: var(--text-soft); }
+  table.cal { width: 100%; border-collapse: separate; border-spacing: 4px; margin-top: 8px; table-layout: fixed; }
+  table.cal th { padding: 6px; font-size: 11px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+  table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; height: 110px; background: #fff; border: 2px solid #eee; font-size: 12px; overflow: hidden; }
+  td.past { opacity: 0.4; }
+  td.today { box-shadow: 0 0 0 2px var(--leaf-dark) inset; }
+  td.good  { background: var(--good); border-color: var(--good-deep); }
+  td.ok    { background: var(--ok); border-color: var(--amber); }
+  td.bad   { background: var(--bad); border-color: var(--rust); }
+  td.future-no-forecast { background: #f4f1ea; border-color: #ddd; }
+  .date { font-weight: 700; font-size: 14px; }
+  .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; }
+  .events { margin-top: 4px; font-size: 10px; color: var(--leaf-dark); line-height: 1.2; }
+  .events div { background: rgba(255,255,255,0.65); padding: 1px 4px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .legend { display: flex; gap: 16px; justify-content: center; margin: 14px 0 6px; font-size: 12px; flex-wrap: wrap; color: var(--text-soft); }
+  .legend .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.1); }
+  .footer { text-align: center; color: var(--text-soft); font-size: 12px; margin-top: 28px; }
+  @media (max-width: 640px) {
+    table.cal td { height: 90px; padding: 4px; font-size: 11px; }
+    .events { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🚴 Empire State Trail — when to ride</h1>
+    <div class="sub">weather (NYC + Albany) × your calendar — best multi-day biking windows ahead</div>
+  </header>
+
+  <div class="windows">
+    <h2>🌤️ best biking windows in the 16-day forecast</h2>
+    <div class="loading" id="windows-loading">crunching forecast + calendar…</div>
+    <div id="windows-list"></div>
+    <div class="refresh-row">
+      <button class="refresh" onclick="refresh()">↻ refresh forecast</button>
+      <span class="stamp" id="stamp"></span>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch" style="background:var(--good)"></span>good biking day</span>
+    <span><span class="swatch" style="background:var(--ok)"></span>ok / minor conflict</span>
+    <span><span class="swatch" style="background:var(--bad)"></span>rain or busy</span>
+    <span><span class="swatch" style="background:#f4f1ea"></span>no forecast yet</span>
+  </div>
+
+  <div id="cal-container"></div>
+
+  <div class="footer">
+    made by kaighnbot 🤖 · weather data: <a href="https://open-meteo.com" target="_blank">open-meteo</a> · refresh anytime · forecast horizon: 16 days
+  </div>
+</div>
+
+<script>
+// === KAIGHN'S CALENDAR (baked at build time) ===
+const EVENTS = [
+  { date: '2026-05-23', title: 'grad party + housewarming', hh: '4:30pm' },
+  { date: '2026-05-29', title: 'Jared & Nora Renaissance', allDay: true },
+  { date: '2026-05-30', title: 'Megan in town', allDay: true },
+  { date: '2026-05-30', title: 'Market Bike Tour', hh: '11am' },
+  { date: '2026-05-30', title: 'Fun for 30-1', hh: '7pm' },
+  { date: '2026-05-31', title: "Katie's 30 picnic", hh: '1pm' },
+  { date: '2026-06-01', title: 'Endocrinology', hh: '2:30pm' },
+  { date: '2026-06-06', title: 'almost summer fête', hh: '8:30pm' },
+  { date: '2026-06-13', title: 'old man park bday', hh: '2pm' },
+  { date: '2026-06-20', title: "Henry's TWO", hh: '3pm' },
+  { date: '2026-06-24', title: 'Doctor', hh: '11:20am' },
+];
+
+const WAYPOINTS = [
+  { name: 'NYC',    lat: 40.7128, lon: -74.0060 },
+  { name: 'Albany', lat: 42.6526, lon: -73.7562 },
+];
+
+let weatherData = null;
+
+async function fetchWeather() {
+  const out = {};
+  for (const w of WAYPOINTS) {
+    const url =
+      `https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}` +
+      `&daily=temperature_2m_max,precipitation_probability_max,precipitation_sum,weather_code` +
+      `&timezone=America/New_York&forecast_days=16`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`weather fetch ${w.name} → ${r.status}`);
+    out[w.name] = await r.json();
+  }
+  return out;
+}
+
+function ymd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+function eventsOn(s) { return EVENTS.filter(e => e.date === s); }
+
+function wxIcon(code, pp) {
+  if (pp >= 60) return '🌧️';
+  if (code === 0) return '☀️';
+  if (code === 1 || code === 2) return '🌤️';
+  if (code === 3) return '☁️';
+  if (code >= 51 && code <= 67) return '🌧️';
+  if (code >= 71 && code <= 77) return '❄️';
+  if (code >= 80 && code <= 99) return '⛈️';
+  return '🌥️';
+}
+
+function dayWeather(s) {
+  if (!weatherData) return null;
+  const nyc = weatherData['NYC'];
+  const idx = nyc.daily.time.indexOf(s);
+  if (idx === -1) return null;
+  const alb = weatherData['Albany'];
+  const aidx = alb.daily.time.indexOf(s);
+  return {
+    nyc_pp: nyc.daily.precipitation_probability_max[idx] ?? 0,
+    alb_pp: alb.daily.precipitation_probability_max[aidx] ?? 0,
+    nyc_t:  nyc.daily.temperature_2m_max[idx],
+    alb_t:  alb.daily.temperature_2m_max[aidx],
+    code:   nyc.daily.weather_code[idx],
+  };
+}
+
+function scoreDay(s) {
+  const w = dayWeather(s);
+  if (!w) return null;
+  const pp_avg = (w.nyc_pp + w.alb_pp) / 2;
+  const wx_score = Math.max(0, 100 - pp_avg);
+  const evs = eventsOn(s);
+  let ev_pen = 0;
+  for (const e of evs) ev_pen += e.allDay ? 60 : 35;
+  const ev_score = Math.max(0, 100 - ev_pen);
+  return Math.round(0.6 * wx_score + 0.4 * ev_score);
+}
+
+function classify(s) {
+  if (!weatherData) return 'future-no-forecast';
+  const sc = scoreDay(s);
+  if (sc === null) return 'future-no-forecast';
+  if (sc >= 70) return 'good';
+  if (sc >= 45) return 'ok';
+  return 'bad';
+}
+
+function findWindows() {
+  if (!weatherData) return [];
+  const days = weatherData['NYC'].daily.time;
+  const today = ymd(new Date());
+  const startIdx = Math.max(0, days.indexOf(today));
+  const windows = [];
+  let cur = null;
+  for (let i = startIdx; i < days.length; i++) {
+    const d = days[i];
+    const cls = classify(d);
+    if (cls === 'good' || cls === 'ok') {
+      if (!cur) cur = { start: d, end: d, days: 1, scoreSum: scoreDay(d) };
+      else { cur.end = d; cur.days++; cur.scoreSum += scoreDay(d); }
+    } else {
+      if (cur && cur.days >= 3) windows.push(cur);
+      cur = null;
+    }
+  }
+  if (cur && cur.days >= 3) windows.push(cur);
+  return windows.map(w => ({
+    ...w,
+    avgScore: Math.round(w.scoreSum / w.days),
+    sortKey: Math.round(w.scoreSum / w.days) + w.days * 5,
+  })).sort((a, b) => b.sortKey - a.sortKey);
+}
+
+function fmtDate(s) {
+  const d = new Date(s + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function tripHint(days) {
+  // Empire State Trail = ~750mi total. Erie Canal Trail = ~360mi (Albany→Buffalo).
+  // Casual touring pace 40-60mi/day.
+  const lo = days * 40, hi = days * 60;
+  if (days >= 8)        return `🛤 enough for NYC→Albany→Buffalo (full Empire+Erie, ~${lo}–${hi}mi)`;
+  if (days >= 5)        return `🛤 enough for NYC→Albany (~${lo}–${hi}mi) or Albany→Buffalo`;
+  if (days >= 4)        return `🛤 ~${lo}–${hi}mi — solid Hudson Valley or partial Erie Canal stretch`;
+  return `🛤 ~${lo}–${hi}mi — weekend portion of the trail`;
+}
+
+function renderWindows() {
+  document.getElementById('windows-loading').style.display = 'none';
+  const list = document.getElementById('windows-list');
+  const ws = findWindows();
+  if (!ws.length) {
+    list.innerHTML = '<div class="window" style="background:#f0c5bc;">no good multi-day windows in the 16-day forecast 😢 — check back in a few days</div>';
+    return;
+  }
+  list.innerHTML = ws.map(w =>
+    `<div class="window">
+       <span>${fmtDate(w.start)} → ${fmtDate(w.end)} <strong>(${w.days} days)</strong></span>
+       <span class="score">avg ${w.avgScore}/100</span>
+       <span class="note">${tripHint(w.days)}</span>
+     </div>`
+  ).join('');
+}
+
+function renderCalendar() {
+  const cont = document.getElementById('cal-container');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay());  // back to Sunday
+  const weeks = 5;
+  const todayStr = ymd(today);
+  let html = '<table class="cal"><thead><tr>';
+  ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(d => html += `<th>${d}</th>`);
+  html += '</tr></thead><tbody>';
+  for (let w = 0; w < weeks; w++) {
+    html += '<tr>';
+    for (let d = 0; d < 7; d++) {
+      const cell = new Date(start);
+      cell.setDate(cell.getDate() + w * 7 + d);
+      const s = ymd(cell);
+      const past = cell < today;
+      const isToday = s === todayStr;
+      const cls = past ? 'past' : classify(s);
+      const events = eventsOn(s);
+      let wx = '';
+      const dw = dayWeather(s);
+      if (dw) {
+        const t = Math.round(dw.nyc_t);
+        wx = `<div class="wx">${wxIcon(dw.code, dw.nyc_pp)} ${t}° · ${dw.nyc_pp}%🌧</div>`;
+      }
+      const evs = events.map(e => `<div title="${e.title}">${e.allDay ? '📌 ' : (e.hh + ' ')}${e.title}</div>`).join('');
+      html += `<td class="${cls}${isToday ? ' today' : ''}"><div class="date">${cell.getDate()}</div>${wx}<div class="events">${evs}</div></td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+async function refresh() {
+  const loading = document.getElementById('windows-loading');
+  loading.style.display = '';
+  loading.textContent = 'fetching forecast…';
+  try {
+    weatherData = await fetchWeather();
+    renderWindows();
+    renderCalendar();
+    document.getElementById('stamp').textContent = 'refreshed ' + new Date().toLocaleString();
+  } catch (e) {
+    loading.textContent = 'weather fetch failed: ' + e.message;
+  }
+}
+
+refresh();
+</script>
+</body>
+</html>
