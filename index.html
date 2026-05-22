@@ -49,6 +49,10 @@
   .pick-2 { background: var(--ok); color: var(--ok-text); border: 3px solid var(--ok-deep); }
   .pick-3 { background: #fffae8; color: var(--text); border: 3px solid var(--ok); }
   .other-windows-label { font-size: 13px; color: var(--text-soft); font-weight: 600; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .length-picker { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; align-items: center; }
+  .length-picker label { font-size: 13px; color: var(--text-soft); font-weight: 600; margin-right: 8px; }
+  .length-picker button { font-family: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; border: 2px solid var(--leaf); background: #fff; color: var(--leaf-dark); cursor: pointer; font-weight: 600; }
+  .length-picker button.active { background: var(--leaf); color: #fff; }
   .window { background: #f4f5f0; padding: 8px 14px; border-radius: 10px; margin: 6px 0; font-weight: 500; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }
   .window .score { color: var(--leaf-dark); font-weight: 700; }
   .window .note { font-size: 11px; color: var(--text-soft); width: 100%; font-weight: 400; }
@@ -58,7 +62,13 @@
   .stamp { font-size: 11px; color: var(--text-soft); }
   table.cal { width: 100%; border-collapse: separate; border-spacing: 4px; margin-top: 8px; table-layout: fixed; }
   table.cal th { padding: 6px; font-size: 11px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.08em; }
-  table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; height: 110px; background: #fff; border: 2px solid #eee; font-size: 12px; overflow: hidden; }
+  table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; height: 140px; background: #fff; border: 2px solid #eee; font-size: 12px; overflow: hidden; position: relative; }
+  /* range highlight rings for top-3 picks across consecutive cells */
+  td.in-pick-1 { box-shadow: inset 0 0 0 4px var(--good-deep); }
+  td.in-pick-2 { box-shadow: inset 0 0 0 4px var(--ok-deep); }
+  td.in-pick-3 { box-shadow: inset 0 0 0 4px var(--ok); }
+  td.today.in-pick-1, td.today.in-pick-2, td.today.in-pick-3 { box-shadow: inset 0 0 0 4px var(--leaf-dark); }
+  td .pick-tag { position: absolute; top: 4px; right: 4px; font-size: 14px; }
   td.past { opacity: 0.35; }
   td.today { box-shadow: 0 0 0 3px var(--leaf-dark) inset; }
   td.good   { background: var(--good); border-color: var(--good-deep); color: var(--good-text); }
@@ -70,8 +80,9 @@
   td.good .wx, td.ok .wx, td.bad .wx, td.blocked .wx { font-weight: 600; }
   .date { font-weight: 800; font-size: 15px; }
   .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; }
-  .events { margin-top: 4px; font-size: 10px; line-height: 1.2; color: inherit; }
-  .events div { background: rgba(255,255,255,0.7); padding: 1px 4px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+  .events { margin-top: 4px; font-size: 11px; line-height: 1.3; color: inherit; }
+  .events div { background: #fff; padding: 2px 5px; border-radius: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); border-left: 3px solid var(--leaf-dark); font-weight: 500; }
+  td.blocked .events div { border-left-color: var(--bad-deep); }
   .legend { display: flex; gap: 16px; justify-content: center; margin: 14px 0 6px; font-size: 12px; flex-wrap: wrap; color: var(--text-soft); }
   .legend .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.1); }
   .footer { text-align: center; color: var(--text-soft); font-size: 12px; margin-top: 28px; }
@@ -91,6 +102,16 @@
   <div class="windows">
     <h2>🌤️ event-free biking windows in the 16-day forecast</h2>
     <div class="sub" style="font-size:13px;color:var(--text-soft);margin-bottom:8px;">priority: zero events first, then best weather. amtrak-back means any length works — pick what suits.</div>
+    <div class="length-picker" id="length-picker">
+      <label>trip length:</label>
+      <button data-len="any" class="active">any</button>
+      <button data-len="1">1 day</button>
+      <button data-len="2">2 days</button>
+      <button data-len="3">3 days</button>
+      <button data-len="5">5 days</button>
+      <button data-len="7">7 days</button>
+      <button data-len="10">10 days</button>
+    </div>
     <div class="loading" id="windows-loading">crunching forecast + calendar…</div>
     <div id="windows-list"></div>
     <div class="refresh-row">
@@ -258,41 +279,98 @@ function tripOptionsFor(days) {
   return TRIP_OPTIONS.filter(t => t.days <= days);
 }
 
+function tripLabelFor(N) {
+  // Find best trip option for an exact N-day trip
+  const exact = TRIP_OPTIONS.find(t => t.days === N);
+  if (exact) return `${exact.label} (${exact.distance}, ${exact.ret})`;
+  const lower = TRIP_OPTIONS.filter(t => t.days <= N).slice(-1)[0];
+  return lower ? `roughly ${lower.label} or further (${lower.distance}+)` : 'short ride';
+}
+
+// Find the best N-day contiguous event-free trips starting on any day in the forecast.
+function findFixedLengthWindows(N) {
+  if (!weatherData) return [];
+  const days = weatherData['NYC'].daily.time;
+  const today = ymd(new Date());
+  const startIdx = Math.max(0, days.indexOf(today));
+  const results = [];
+  for (let i = startIdx; i + N <= days.length; i++) {
+    let scoreSum = 0, ok = true;
+    for (let j = 0; j < N; j++) {
+      const d = days[i + j];
+      if (eventsOn(d).length) { ok = false; break; }
+      const ws = weatherScore(d);
+      if (ws === null) { ok = false; break; }
+      scoreSum += ws;
+    }
+    if (!ok) continue;
+    results.push({
+      start: days[i],
+      end: days[i + N - 1],
+      days: N,
+      avgScore: Math.round(scoreSum / N),
+    });
+  }
+  return results.sort((a, b) => b.avgScore - a.avgScore);
+}
+
+let selectedLength = 'any';
+let currentTopPicks = [];  // top 3 windows currently displayed — used for calendar highlighting
+
 function renderWindows() {
   document.getElementById('windows-loading').style.display = 'none';
   const list = document.getElementById('windows-list');
-  const ws = findWindows();
+  let ws, mode;
+  if (selectedLength === 'any') {
+    ws = findWindows();
+    mode = 'any';
+  } else {
+    ws = findFixedLengthWindows(parseInt(selectedLength, 10));
+    mode = 'fixed';
+  }
   if (!ws.length) {
-    list.innerHTML = '<div class="window" style="background:#f7d5cd;">no event-free windows in the 16-day forecast — your calendar is too packed 😅 check back in a few days</div>';
+    const msg = mode === 'fixed'
+      ? `no ${selectedLength}-day event-free windows in the forecast 😢 — try a shorter trip or check back in a few days`
+      : 'no event-free windows in the 16-day forecast — your calendar is too packed 😅';
+    list.innerHTML = `<div class="window" style="background:#f7d5cd;">${msg}</div>`;
+    currentTopPicks = [];
+    renderCalendar();
     return;
   }
   const top = ws.slice(0, 3);
+  currentTopPicks = top.map(w => ({ start: w.start, end: w.end }));
   const rest = ws.slice(3);
   const medals = ['🥇', '🥈', '🥉'];
   const labels = ['BEST WEATHER', 'RUNNER-UP', 'ALSO CONSIDER'];
   let html = '<div class="top-picks">';
   top.forEach((w, i) => {
-    const opts = tripOptionsFor(w.days);
-    const optsHtml = opts.length
-      ? opts.map(t => `<li>🚴 <b>${t.days}d:</b> ${t.label} (${t.distance}) — ${t.ret}</li>`).join('')
-      : `<li>🚴 single-day: NYC → Cold Spring/Beacon (~50mi), Metro-North home</li>`;
+    let body;
+    if (mode === 'fixed') {
+      body =
+        `<div class="range">${fmtDate(w.start)} → ${fmtDate(w.end)} · ${w.days} days · ${labels[i]}</div>
+         <div class="note">🚴 ${tripLabelFor(w.days)}</div>`;
+    } else {
+      const opts = tripOptionsFor(w.days);
+      const optsHtml = opts.length
+        ? opts.map(t => `<li>🚴 <b>${t.days}d:</b> ${t.label} (${t.distance}) — ${t.ret}</li>`).join('')
+        : `<li>🚴 single-day: NYC → Beacon (~60mi), Metro-North home</li>`;
+      body =
+        `<div class="range">${fmtDate(w.start)} → ${fmtDate(w.end)} · ${w.days} event-free day${w.days>1?'s':''} · ${labels[i]}</div>
+         <div class="note">pick any length within this window:</div>
+         <ul class="trip-options">${optsHtml}</ul>`;
+    }
     html +=
       `<div class="pick pick-${i+1}">
          <span class="medal">${medals[i]}</span>
-         <div>
-           <div class="range">${fmtDate(w.start)} → ${fmtDate(w.end)} · ${w.days} event-free day${w.days>1?'s':''} · ${labels[i]}</div>
-           <div class="note">pick any length within this window:</div>
-           <ul class="trip-options">${optsHtml}</ul>
-         </div>
+         <div>${body}</div>
          <span class="score">${w.avgScore}/100</span>
        </div>`;
   });
   html += '</div>';
   if (rest.length) {
-    html += `<div class="other-windows-label">other event-free windows</div>`;
+    html += `<div class="other-windows-label">other ${mode === 'fixed' ? selectedLength + '-day ' : ''}options</div>`;
     rest.forEach(w => {
-      const longest = tripOptionsFor(w.days).slice(-1)[0];
-      const hint = longest ? `up to ${longest.days}d (${longest.label})` : 'short ride only';
+      const hint = mode === 'fixed' ? tripLabelFor(w.days) : `up to ${w.days}d`;
       html +=
         `<div class="window">
            <span>${fmtDate(w.start)} → ${fmtDate(w.end)} <strong>(${w.days}d)</strong></span>
@@ -302,6 +380,15 @@ function renderWindows() {
     });
   }
   list.innerHTML = html;
+  renderCalendar();  // re-render to update range highlights
+}
+
+function pickIndexFor(dateStr) {
+  // returns 1, 2, or 3 if dateStr falls within the corresponding top pick range, else 0
+  for (let i = 0; i < currentTopPicks.length; i++) {
+    if (dateStr >= currentTopPicks[i].start && dateStr <= currentTopPicks[i].end) return i + 1;
+  }
+  return 0;
 }
 
 function renderCalendar() {
@@ -331,7 +418,11 @@ function renderCalendar() {
         wx = `<div class="wx">${wxIcon(dw.code, dw.nyc_pp)} ${t}° · ${dw.nyc_pp}%🌧</div>`;
       }
       const evs = events.map(e => `<div title="${e.title}">${e.allDay ? '📌 ' : (e.hh + ' ')}${e.title}</div>`).join('');
-      html += `<td class="${cls}${isToday ? ' today' : ''}"><div class="date">${cell.getDate()}</div>${wx}<div class="events">${evs}</div></td>`;
+      const pickIdx = past ? 0 : pickIndexFor(s);
+      const pickCls = pickIdx ? ` in-pick-${pickIdx}` : '';
+      const medals = ['', '🥇', '🥈', '🥉'];
+      const tag = pickIdx ? `<span class="pick-tag" title="part of the ${['','BEST','runner-up','also consider'][pickIdx]} pick">${medals[pickIdx]}</span>` : '';
+      html += `<td class="${cls}${isToday ? ' today' : ''}${pickCls}"><div class="date">${cell.getDate()}</div>${tag}${wx}<div class="events">${evs}</div></td>`;
     }
     html += '</tr>';
   }
@@ -345,13 +436,20 @@ async function refresh() {
   loading.textContent = 'fetching forecast…';
   try {
     weatherData = await fetchWeather();
-    renderWindows();
-    renderCalendar();
+    renderWindows();  // also calls renderCalendar()
     document.getElementById('stamp').textContent = 'refreshed ' + new Date().toLocaleString();
   } catch (e) {
     loading.textContent = 'weather fetch failed: ' + e.message;
   }
 }
+
+// length-picker click wiring
+document.getElementById('length-picker').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  selectedLength = e.target.dataset.len;
+  document.querySelectorAll('#length-picker button').forEach(b => b.classList.toggle('active', b === e.target));
+  renderWindows();
+});
 
 refresh();
 </script>
