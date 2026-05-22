@@ -76,10 +76,9 @@
   td.bad    { background: var(--bad); border-color: var(--bad-deep); color: var(--bad-text); }
   td.blocked { background: var(--blocked); border-color: var(--blocked-deep); color: var(--blocked-text); }
   td.future-no-forecast { background: var(--no-forecast); border-color: var(--no-forecast-deep); color: #555; }
-  td.good .events div, td.ok .events div, td.bad .events div, td.blocked .events div { background: rgba(255,255,255,0.25); color: inherit; }
-  td.good .wx, td.ok .wx, td.bad .wx, td.blocked .wx { font-weight: 600; }
+  /* events + weather keep their own bg/color so they're readable on every cell color */
   .date { font-weight: 800; font-size: 15px; }
-  .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; }
+  .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; background: rgba(255,255,255,0.9); color: var(--text); padding: 1px 5px; border-radius: 5px; display: inline-block; font-weight: 600; }
   .events { margin-top: 4px; font-size: 11px; line-height: 1.3; color: inherit; }
   .events div { background: #fff; padding: 2px 5px; border-radius: 5px; margin-bottom: 3px; white-space: normal; word-break: break-word; color: var(--text); border-left: 3px solid var(--leaf-dark); font-weight: 500; font-size: 10.5px; line-height: 1.3; }
   td.blocked .events div { border-left-color: var(--bad-deep); }
