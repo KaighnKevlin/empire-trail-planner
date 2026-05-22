@@ -21,6 +21,9 @@
     --bad: #d65040;
     --bad-deep: #9b2e21;
     --bad-text: #ffffff;
+    --blocked: #6b6b6b;
+    --blocked-deep: #3d3d3d;
+    --blocked-text: #ffffff;
     --no-forecast: #d9d6cd;
     --no-forecast-deep: #b3b0a7;
     --text: #2e3a2a;
@@ -40,6 +43,8 @@
   .pick .range { font-size: 16px; font-weight: 700; }
   .pick .note { font-size: 12px; opacity: .85; margin-top: 4px; }
   .pick .score { font-size: 15px; font-weight: 800; padding: 4px 10px; background: rgba(0,0,0,0.15); border-radius: 999px; white-space: nowrap; }
+  .trip-options { list-style: none; padding: 6px 0 0 0; margin: 6px 0 0 0; font-size: 12px; line-height: 1.6; }
+  .trip-options li { background: rgba(255,255,255,0.35); padding: 3px 8px; border-radius: 5px; margin-bottom: 3px; }
   .pick-1 { background: var(--good); color: var(--good-text); border: 3px solid var(--good-deep); }
   .pick-2 { background: var(--ok); color: var(--ok-text); border: 3px solid var(--ok-deep); }
   .pick-3 { background: #fffae8; color: var(--text); border: 3px solid var(--ok); }
@@ -56,12 +61,13 @@
   table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; height: 110px; background: #fff; border: 2px solid #eee; font-size: 12px; overflow: hidden; }
   td.past { opacity: 0.35; }
   td.today { box-shadow: 0 0 0 3px var(--leaf-dark) inset; }
-  td.good  { background: var(--good); border-color: var(--good-deep); color: var(--good-text); }
-  td.ok    { background: var(--ok); border-color: var(--ok-deep); color: var(--ok-text); }
-  td.bad   { background: var(--bad); border-color: var(--bad-deep); color: var(--bad-text); }
+  td.good   { background: var(--good); border-color: var(--good-deep); color: var(--good-text); }
+  td.ok     { background: var(--ok); border-color: var(--ok-deep); color: var(--ok-text); }
+  td.bad    { background: var(--bad); border-color: var(--bad-deep); color: var(--bad-text); }
+  td.blocked { background: var(--blocked); border-color: var(--blocked-deep); color: var(--blocked-text); }
   td.future-no-forecast { background: var(--no-forecast); border-color: var(--no-forecast-deep); color: #555; }
-  td.good .events div, td.ok .events div, td.bad .events div { background: rgba(0,0,0,0.18); color: inherit; }
-  td.good .wx, td.ok .wx, td.bad .wx { font-weight: 600; }
+  td.good .events div, td.ok .events div, td.bad .events div, td.blocked .events div { background: rgba(255,255,255,0.25); color: inherit; }
+  td.good .wx, td.ok .wx, td.bad .wx, td.blocked .wx { font-weight: 600; }
   .date { font-weight: 800; font-size: 15px; }
   .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; }
   .events { margin-top: 4px; font-size: 10px; line-height: 1.2; color: inherit; }
@@ -83,7 +89,8 @@
   </header>
 
   <div class="windows">
-    <h2>🌤️ best biking windows in the 16-day forecast</h2>
+    <h2>🌤️ event-free biking windows in the 16-day forecast</h2>
+    <div class="sub" style="font-size:13px;color:var(--text-soft);margin-bottom:8px;">priority: zero events first, then best weather. amtrak-back means any length works — pick what suits.</div>
     <div class="loading" id="windows-loading">crunching forecast + calendar…</div>
     <div id="windows-list"></div>
     <div class="refresh-row">
@@ -93,10 +100,11 @@
   </div>
 
   <div class="legend">
-    <span><span class="swatch" style="background:var(--good)"></span>good biking day</span>
-    <span><span class="swatch" style="background:var(--ok)"></span>ok / minor conflict</span>
-    <span><span class="swatch" style="background:var(--bad)"></span>rain or busy</span>
-    <span><span class="swatch" style="background:#f4f1ea"></span>no forecast yet</span>
+    <span><span class="swatch" style="background:var(--good)"></span>free + good weather</span>
+    <span><span class="swatch" style="background:var(--ok)"></span>free + ok weather</span>
+    <span><span class="swatch" style="background:var(--bad)"></span>free but rainy</span>
+    <span><span class="swatch" style="background:var(--blocked)"></span>blocked (has event)</span>
+    <span><span class="swatch" style="background:var(--no-forecast)"></span>no forecast yet</span>
   </div>
 
   <div id="cal-container"></div>
@@ -178,27 +186,27 @@ function dayWeather(s) {
   };
 }
 
-function scoreDay(s) {
+// Hard constraint: any event on the day = "blocked" (Kaighn would miss the event).
+// Weather score = 100 - avg precip probability (NYC + Albany).
+function weatherScore(s) {
   const w = dayWeather(s);
   if (!w) return null;
   const pp_avg = (w.nyc_pp + w.alb_pp) / 2;
-  const wx_score = Math.max(0, 100 - pp_avg);
-  const evs = eventsOn(s);
-  let ev_pen = 0;
-  for (const e of evs) ev_pen += e.allDay ? 60 : 35;
-  const ev_score = Math.max(0, 100 - ev_pen);
-  return Math.round(0.6 * wx_score + 0.4 * ev_score);
+  return Math.round(Math.max(0, 100 - pp_avg));
 }
 
 function classify(s) {
+  if (eventsOn(s).length) return 'blocked';            // event = no-go for a trip
   if (!weatherData) return 'future-no-forecast';
-  const sc = scoreDay(s);
-  if (sc === null) return 'future-no-forecast';
-  if (sc >= 70) return 'good';
-  if (sc >= 45) return 'ok';
+  const ws = weatherScore(s);
+  if (ws === null) return 'future-no-forecast';
+  if (ws >= 70) return 'good';
+  if (ws >= 45) return 'ok';
   return 'bad';
 }
 
+// Find runs of consecutive event-FREE days with at least usable weather.
+// "miss 0 events" is the hard constraint — anything with an event breaks the run.
 function findWindows() {
   if (!weatherData) return [];
   const days = weatherData['NYC'].daily.time;
@@ -208,21 +216,26 @@ function findWindows() {
   let cur = null;
   for (let i = startIdx; i < days.length; i++) {
     const d = days[i];
-    const cls = classify(d);
-    if (cls === 'good' || cls === 'ok') {
-      if (!cur) cur = { start: d, end: d, days: 1, scoreSum: scoreDay(d) };
-      else { cur.end = d; cur.days++; cur.scoreSum += scoreDay(d); }
-    } else {
-      if (cur && cur.days >= 3) windows.push(cur);
+    if (eventsOn(d).length) {
+      if (cur && cur.days >= 1) windows.push(cur);
       cur = null;
+      continue;
     }
+    const ws = weatherScore(d);
+    if (ws === null) {
+      if (cur && cur.days >= 1) windows.push(cur);
+      cur = null;
+      continue;
+    }
+    // include even rainy days in the "free" run — let the score speak
+    if (!cur) cur = { start: d, end: d, days: 1, scoreSum: ws };
+    else { cur.end = d; cur.days++; cur.scoreSum += ws; }
   }
-  if (cur && cur.days >= 3) windows.push(cur);
+  if (cur && cur.days >= 1) windows.push(cur);
   return windows.map(w => ({
     ...w,
     avgScore: Math.round(w.scoreSum / w.days),
-    sortKey: Math.round(w.scoreSum / w.days) + w.days * 5,
-  })).sort((a, b) => b.sortKey - a.sortKey);
+  })).sort((a, b) => b.avgScore - a.avgScore);  // best weather wins, length doesn't matter
 }
 
 function fmtDate(s) {
@@ -230,14 +243,19 @@ function fmtDate(s) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function tripHint(days) {
-  // Empire State Trail = ~750mi total. Erie Canal Trail = ~360mi (Albany→Buffalo).
-  // Casual touring pace 40-60mi/day.
-  const lo = days * 40, hi = days * 60;
-  if (days >= 8)        return `🛤 enough for NYC→Albany→Buffalo (full Empire+Erie, ~${lo}–${hi}mi)`;
-  if (days >= 5)        return `🛤 enough for NYC→Albany (~${lo}–${hi}mi) or Albany→Buffalo`;
-  if (days >= 4)        return `🛤 ~${lo}–${hi}mi — solid Hudson Valley or partial Erie Canal stretch`;
-  return `🛤 ~${lo}–${hi}mi — weekend portion of the trail`;
+// Amtrak-return-friendly trip options. Each entry = { days, label, distance }
+// Pace assumed ~50mi/day casual touring.
+const TRIP_OPTIONS = [
+  { days: 1, label: 'NYC → Beacon',          distance: '~60 mi',  ret: 'Metro-North home' },
+  { days: 2, label: 'NYC → Rhinebeck/Hudson', distance: '~110 mi', ret: 'Amtrak home from Hudson' },
+  { days: 3, label: 'NYC → Albany',          distance: '~200 mi', ret: 'Amtrak Empire Service home' },
+  { days: 5, label: 'NYC → Albany → Utica',  distance: '~310 mi', ret: 'Amtrak home from Utica' },
+  { days: 7, label: 'NYC → Albany → Syracuse/Rochester', distance: '~450 mi', ret: 'Amtrak home' },
+  { days: 10,label: 'Full Empire+Erie: NYC → Buffalo', distance: '~750 mi', ret: 'Amtrak home from Buffalo' },
+];
+
+function tripOptionsFor(days) {
+  return TRIP_OPTIONS.filter(t => t.days <= days);
 }
 
 function renderWindows() {
@@ -245,34 +263,41 @@ function renderWindows() {
   const list = document.getElementById('windows-list');
   const ws = findWindows();
   if (!ws.length) {
-    list.innerHTML = '<div class="window" style="background:#f7d5cd;">no good multi-day windows in the 16-day forecast 😢 — check back in a few days</div>';
+    list.innerHTML = '<div class="window" style="background:#f7d5cd;">no event-free windows in the 16-day forecast — your calendar is too packed 😅 check back in a few days</div>';
     return;
   }
   const top = ws.slice(0, 3);
   const rest = ws.slice(3);
   const medals = ['🥇', '🥈', '🥉'];
-  const labels = ['BEST PICK', 'RUNNER-UP', 'ALSO CONSIDER'];
+  const labels = ['BEST WEATHER', 'RUNNER-UP', 'ALSO CONSIDER'];
   let html = '<div class="top-picks">';
   top.forEach((w, i) => {
+    const opts = tripOptionsFor(w.days);
+    const optsHtml = opts.length
+      ? opts.map(t => `<li>🚴 <b>${t.days}d:</b> ${t.label} (${t.distance}) — ${t.ret}</li>`).join('')
+      : `<li>🚴 single-day: NYC → Cold Spring/Beacon (~50mi), Metro-North home</li>`;
     html +=
       `<div class="pick pick-${i+1}">
          <span class="medal">${medals[i]}</span>
          <div>
-           <div class="range">${fmtDate(w.start)} → ${fmtDate(w.end)} · ${w.days} days · ${labels[i]}</div>
-           <div class="note">${tripHint(w.days)}</div>
+           <div class="range">${fmtDate(w.start)} → ${fmtDate(w.end)} · ${w.days} event-free day${w.days>1?'s':''} · ${labels[i]}</div>
+           <div class="note">pick any length within this window:</div>
+           <ul class="trip-options">${optsHtml}</ul>
          </div>
          <span class="score">${w.avgScore}/100</span>
        </div>`;
   });
   html += '</div>';
   if (rest.length) {
-    html += `<div class="other-windows-label">other viable windows</div>`;
+    html += `<div class="other-windows-label">other event-free windows</div>`;
     rest.forEach(w => {
+      const longest = tripOptionsFor(w.days).slice(-1)[0];
+      const hint = longest ? `up to ${longest.days}d (${longest.label})` : 'short ride only';
       html +=
         `<div class="window">
            <span>${fmtDate(w.start)} → ${fmtDate(w.end)} <strong>(${w.days}d)</strong></span>
            <span class="score">${w.avgScore}/100</span>
-           <span class="note">${tripHint(w.days)}</span>
+           <span class="note">${hint}</span>
          </div>`;
     });
   }
