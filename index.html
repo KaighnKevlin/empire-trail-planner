@@ -62,7 +62,7 @@
   .stamp { font-size: 11px; color: var(--text-soft); }
   table.cal { width: 100%; border-collapse: separate; border-spacing: 4px; margin-top: 8px; table-layout: fixed; }
   table.cal th { padding: 6px; font-size: 11px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.08em; }
-  table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; height: 140px; background: #fff; border: 2px solid #eee; font-size: 12px; overflow: hidden; position: relative; }
+  table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; min-height: 140px; height: auto; background: #fff; border: 2px solid #eee; font-size: 12px; position: relative; }
   /* range highlight rings for top-3 picks across consecutive cells */
   td.in-pick-1 { box-shadow: inset 0 0 0 4px var(--good-deep); }
   td.in-pick-2 { box-shadow: inset 0 0 0 4px var(--ok-deep); }
@@ -81,7 +81,7 @@
   .date { font-weight: 800; font-size: 15px; }
   .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; }
   .events { margin-top: 4px; font-size: 11px; line-height: 1.3; color: inherit; }
-  .events div { background: #fff; padding: 2px 5px; border-radius: 5px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); border-left: 3px solid var(--leaf-dark); font-weight: 500; }
+  .events div { background: #fff; padding: 2px 5px; border-radius: 5px; margin-bottom: 3px; white-space: normal; word-break: break-word; color: var(--text); border-left: 3px solid var(--leaf-dark); font-weight: 500; font-size: 10.5px; line-height: 1.3; }
   td.blocked .events div { border-left-color: var(--bad-deep); }
   .legend { display: flex; gap: 16px; justify-content: center; margin: 14px 0 6px; font-size: 12px; flex-wrap: wrap; color: var(--text-soft); }
   .legend .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.1); }
