@@ -11,12 +11,18 @@
     --cream: #fdfaf3;
     --leaf: #4f7d44;
     --leaf-dark: #2e5226;
-    --amber: #f0a830;
-    --rust: #c8553d;
-    --good: #c8e6bf;
-    --good-deep: #5a9d49;
-    --ok: #fae6b6;
-    --bad: #f0c5bc;
+    /* saturated, very-obvious day colors */
+    --good: #5fb950;
+    --good-deep: #2d8c1c;
+    --good-text: #ffffff;
+    --ok: #f5a623;
+    --ok-deep: #c47b09;
+    --ok-text: #2a1f00;
+    --bad: #d65040;
+    --bad-deep: #9b2e21;
+    --bad-text: #ffffff;
+    --no-forecast: #d9d6cd;
+    --no-forecast-deep: #b3b0a7;
     --text: #2e3a2a;
     --text-soft: #6f7e69;
   }
@@ -28,9 +34,19 @@
   .sub { color: var(--text-soft); margin-top: 6px; font-size: 14px; }
   .windows { background: #fff; border: 2px solid var(--leaf); border-radius: 14px; padding: 18px; margin: 22px 0; }
   .windows h2 { margin: 0 0 12px; color: var(--leaf-dark); font-size: 18px; font-weight: 700; }
-  .window { background: var(--good); padding: 10px 14px; border-radius: 10px; margin: 8px 0; font-weight: 500; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .top-picks { display: grid; gap: 10px; margin-bottom: 14px; }
+  .pick { padding: 14px 16px; border-radius: 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+  .pick .medal { font-size: 28px; line-height: 1; }
+  .pick .range { font-size: 16px; font-weight: 700; }
+  .pick .note { font-size: 12px; opacity: .85; margin-top: 4px; }
+  .pick .score { font-size: 15px; font-weight: 800; padding: 4px 10px; background: rgba(0,0,0,0.15); border-radius: 999px; white-space: nowrap; }
+  .pick-1 { background: var(--good); color: var(--good-text); border: 3px solid var(--good-deep); }
+  .pick-2 { background: var(--ok); color: var(--ok-text); border: 3px solid var(--ok-deep); }
+  .pick-3 { background: #fffae8; color: var(--text); border: 3px solid var(--ok); }
+  .other-windows-label { font-size: 13px; color: var(--text-soft); font-weight: 600; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .window { background: #f4f5f0; padding: 8px 14px; border-radius: 10px; margin: 6px 0; font-weight: 500; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }
   .window .score { color: var(--leaf-dark); font-weight: 700; }
-  .window .note { font-size: 12px; color: var(--text-soft); width: 100%; font-weight: 400; }
+  .window .note { font-size: 11px; color: var(--text-soft); width: 100%; font-weight: 400; }
   .loading { text-align: center; padding: 20px; color: var(--text-soft); font-style: italic; }
   .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; flex-wrap: wrap; gap: 8px; }
   .refresh { background: var(--leaf); color: #fff; border: 0; padding: 8px 16px; border-radius: 999px; font-weight: 600; cursor: pointer; font-family: inherit; }
@@ -38,16 +54,18 @@
   table.cal { width: 100%; border-collapse: separate; border-spacing: 4px; margin-top: 8px; table-layout: fixed; }
   table.cal th { padding: 6px; font-size: 11px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.08em; }
   table.cal td { vertical-align: top; padding: 6px 6px 4px; border-radius: 10px; height: 110px; background: #fff; border: 2px solid #eee; font-size: 12px; overflow: hidden; }
-  td.past { opacity: 0.4; }
-  td.today { box-shadow: 0 0 0 2px var(--leaf-dark) inset; }
-  td.good  { background: var(--good); border-color: var(--good-deep); }
-  td.ok    { background: var(--ok); border-color: var(--amber); }
-  td.bad   { background: var(--bad); border-color: var(--rust); }
-  td.future-no-forecast { background: #f4f1ea; border-color: #ddd; }
-  .date { font-weight: 700; font-size: 14px; }
+  td.past { opacity: 0.35; }
+  td.today { box-shadow: 0 0 0 3px var(--leaf-dark) inset; }
+  td.good  { background: var(--good); border-color: var(--good-deep); color: var(--good-text); }
+  td.ok    { background: var(--ok); border-color: var(--ok-deep); color: var(--ok-text); }
+  td.bad   { background: var(--bad); border-color: var(--bad-deep); color: var(--bad-text); }
+  td.future-no-forecast { background: var(--no-forecast); border-color: var(--no-forecast-deep); color: #555; }
+  td.good .events div, td.ok .events div, td.bad .events div { background: rgba(0,0,0,0.18); color: inherit; }
+  td.good .wx, td.ok .wx, td.bad .wx { font-weight: 600; }
+  .date { font-weight: 800; font-size: 15px; }
   .wx { font-size: 11px; margin-top: 3px; line-height: 1.2; }
-  .events { margin-top: 4px; font-size: 10px; color: var(--leaf-dark); line-height: 1.2; }
-  .events div { background: rgba(255,255,255,0.65); padding: 1px 4px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .events { margin-top: 4px; font-size: 10px; line-height: 1.2; color: inherit; }
+  .events div { background: rgba(255,255,255,0.7); padding: 1px 4px; border-radius: 5px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
   .legend { display: flex; gap: 16px; justify-content: center; margin: 14px 0 6px; font-size: 12px; flex-wrap: wrap; color: var(--text-soft); }
   .legend .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.1); }
   .footer { text-align: center; color: var(--text-soft); font-size: 12px; margin-top: 28px; }
@@ -227,16 +245,38 @@ function renderWindows() {
   const list = document.getElementById('windows-list');
   const ws = findWindows();
   if (!ws.length) {
-    list.innerHTML = '<div class="window" style="background:#f0c5bc;">no good multi-day windows in the 16-day forecast 😢 — check back in a few days</div>';
+    list.innerHTML = '<div class="window" style="background:#f7d5cd;">no good multi-day windows in the 16-day forecast 😢 — check back in a few days</div>';
     return;
   }
-  list.innerHTML = ws.map(w =>
-    `<div class="window">
-       <span>${fmtDate(w.start)} → ${fmtDate(w.end)} <strong>(${w.days} days)</strong></span>
-       <span class="score">avg ${w.avgScore}/100</span>
-       <span class="note">${tripHint(w.days)}</span>
-     </div>`
-  ).join('');
+  const top = ws.slice(0, 3);
+  const rest = ws.slice(3);
+  const medals = ['🥇', '🥈', '🥉'];
+  const labels = ['BEST PICK', 'RUNNER-UP', 'ALSO CONSIDER'];
+  let html = '<div class="top-picks">';
+  top.forEach((w, i) => {
+    html +=
+      `<div class="pick pick-${i+1}">
+         <span class="medal">${medals[i]}</span>
+         <div>
+           <div class="range">${fmtDate(w.start)} → ${fmtDate(w.end)} · ${w.days} days · ${labels[i]}</div>
+           <div class="note">${tripHint(w.days)}</div>
+         </div>
+         <span class="score">${w.avgScore}/100</span>
+       </div>`;
+  });
+  html += '</div>';
+  if (rest.length) {
+    html += `<div class="other-windows-label">other viable windows</div>`;
+    rest.forEach(w => {
+      html +=
+        `<div class="window">
+           <span>${fmtDate(w.start)} → ${fmtDate(w.end)} <strong>(${w.days}d)</strong></span>
+           <span class="score">${w.avgScore}/100</span>
+           <span class="note">${tripHint(w.days)}</span>
+         </div>`;
+    });
+  }
+  list.innerHTML = html;
 }
 
 function renderCalendar() {
